@@ -1,0 +1,363 @@
+<?php
+/*
+* Authors of the current 7.x-1.x version:
+* @author Harsha Dananjaya (free2harsha@gmail.com)
+*
+*/
+
+/**
+ * Implements hook_permission().
+ */
+function uc_custom_address_permission() {
+  return array(
+    'access uc_custom_address content' => array(
+      'title' => t('Access for Ubercart Address City costomize'),
+    )
+  );
+}
+/**
+* Implements hook_menu().
+*/
+function uc_custom_address_menu() {
+    $items = array();    
+	$items['admin/store/uc-countrys/list'] = array(
+        'title' => 'Address Countries',
+        'page callback' => 'uc_countrys',
+		'page arguments' => array(2), // An array of arguments to pass to the page 
+        'access arguments' => array('access uc_custom_address content'),
+        'type' => MENU_NORMAL_ITEM, // Will appear in Navigation menu.
+      );
+	  
+    $items['admin/store/uc-countrys/uc_city/%'] = array(
+        'title' => 'Cities',
+        'page callback' => 'uc_city_page',
+		'page arguments' => array(4), // An array of arguments to pass to the page 
+        'access arguments' => array('access uc_custom_address content'),
+        'type' => MENU_NORMAL_ITEM, // Will appear in Navigation menu.
+      );
+	   $items['admin/store/uc-countrys/uc_city_edit/%/%'] = array(
+        'title' => 'Edit City',
+        'page callback' => 'uc_city_edit_page',
+		'page arguments' => array(4 , 5),
+        'access arguments' => array('access uc_custom_address content'),
+        'type' => MENU_NORMAL_ITEM, // Will appear in Navigation menu.
+      );	   
+	  $items['admin/store/uc-countrys/uc_city_add/%/%'] = array(
+        'title' => 'Add City',
+        'page callback' => 'uc_city_add_page',
+		'page arguments' => array(4 , 5),
+        'access arguments' => array('access uc_custom_address content'),
+        'type' => MENU_NORMAL_ITEM, // Will appear in Navigation menu.
+      );	  
+	  $items['admin/store/uc-countrys/uc_city_delete/%/%'] = array(
+        'title' => 'Delete City',
+        'page callback' => 'uc_city_delete_page',
+		'page arguments' => array(4 , 5),
+        'access arguments' => array('access uc_custom_address content'),
+        'type' => MENU_NORMAL_ITEM, // Will appear in Navigation menu.
+      );
+    return $items;
+}
+function uc_countrys(){
+	global $base_url; 
+	$tbleResult=null;
+	
+	$uc_country = db_select('uc_countries', 'c')
+			  ->fields('c')
+			  ->execute()
+			  ->fetchAll();
+
+		
+	$tableDetails ='';
+	$i=1;
+	foreach ($uc_country as $uc_countries) {
+
+		$url=$base_url.'/admin/store/uc-countrys/uc_city/'.strtoupper ($uc_countries->country_id);
+		
+		$tableDetails .='<tr> 	<td>'.$i.' </td>
+								<td> '.$uc_countries->country_name.' </td>
+								<td><a href="'.$url.'"> Edit </a> </td>
+						</tr>';
+		$i++;
+	}
+	$tbleResult='<table>
+					<tr><th>No</th> <th>Country</th><th>Edit</th></tr>
+					'.$tableDetails.'
+				</table>';
+		
+	return $tbleResult;
+}
+
+function uc_city_page($cntry){
+	global $base_url; 
+	$tbleResult=null;
+		
+	$country = strtoupper ($cntry); 
+	
+	$uc_add = db_select('uc_zones', 'z')
+				  ->fields('z')
+				  ->condition('zone_country_id', $country)
+				  ->orderBy('zone_name', 'ASC')
+				  ->execute()
+				  ->fetchAll();
+	
+	$uc_country = db_select('uc_countries', 'c')
+			  ->fields('c')
+			  ->condition('country_id', $country)
+			  ->execute()
+			  ->fetchAll();
+
+		
+	$tableDetails ='';
+	$i=1;
+	foreach ($uc_add as $uc_adds) {
+
+		$url=$base_url.'/admin/store/uc-countrys/uc_city_edit/'.strtoupper ($cntry).'/'.$uc_adds->zone_code;
+		$urlDel=$base_url.'/admin/store/uc-countrys/uc_city_delete/'.strtoupper ($cntry).'/'.$uc_adds->zone_code;
+		
+		$tableDetails .='<tr> 	<td>'.$i.' </td>
+								<td> '.$uc_country[0]->country_name.' </td>
+								<td>'.$uc_adds->zone_code.' </td>
+								<td>'.$uc_adds->zone_name.' </td>
+								<td><a href="'.$url.'"> Edit </a> </td>
+								<td><a href="'.$urlDel.'"> Delete </a> </td>
+						</tr>';
+		$i++;
+	}
+	$addNew=$base_url.'/admin/store/uc-countrys/uc_city_edit/'.strtoupper ($cntry).'/add';
+	$tbleResult='<p>Click to <a href="'.$addNew.'">Add New</a></p><table>
+					<tr><th>No</th> <th>Country</th> <th>Zone Code</th> <th>City</th><th>Edit</th><th>Delete</th></tr>
+					'.$tableDetails.'
+				</table>';
+		
+	return $tbleResult;
+}
+
+function uc_city_edit_page($cntry , $city){
+	$output = drupal_get_form('uc_custom_address_edit_form' ,$cntry , $city);
+	return drupal_render($output);
+}
+function uc_city_add_page($cntry , $city){
+	$output = drupal_get_form('uc_custom_address_edit_form' ,$cntry , 'add');
+	return drupal_render($output);
+}
+
+function uc_city_delete_page($cntry , $city){
+	$result = db_select('uc_zones', 's')
+			->fields('s')
+			->condition('zone_country_id', $cntry ,'=')
+			->condition('zone_code', $city ,'=')
+			->execute()
+			->fetchAll();
+			
+	$text ='<h3>Click to delete button to Delete  "'.$result[0]->zone_name.'"</h3>';
+	$output = drupal_get_form('uc_custom_address_Delete_form' ,$cntry , $city);
+	return $text.drupal_render($output);
+}
+
+
+
+/**
+ *  Form constructor for the example form.
+ */
+function uc_custom_address_edit_form($form, &$form_state ,$cntry , $city) {
+	
+	$country_code =$cntry; 
+	
+if($city=='add'){
+	$cityname = '';
+}else{
+		$result = db_select('uc_zones', 's')
+			->fields('s')
+			->condition('zone_country_id', $country_code ,'=')
+			->condition('zone_code', $city ,'=')
+			->execute()
+			->fetchAll();
+			$cityname = $result[0]->zone_name;
+}
+
+
+	
+	$form['value_cityname'] = array(
+		'#title' => t('City Name'),
+		'#type' => 'textfield',
+		'#value' =>$cityname,
+		'#required' => TRUE,
+	);
+	
+	$form['value_cntry'] = array(
+		'#type' => 'hidden',
+		'#value' =>$cntry,
+	);
+	
+	$form['value_city'] = array(
+		'#type' => 'hidden',
+		'#value' =>$city,
+	);
+
+	// Provide a submit button.
+	$form['submit'] = array(
+		'#type' => 'submit',
+		'#value' => 'Save',
+	);
+  
+  return $form;
+}
+
+function uc_custom_address_edit_form_validate($form, &$form_state) {
+	$error = false;
+	if(trim($form_state["input"]["value_cntry"]) == ''){
+		$error = true;
+	}
+	if(trim($form_state["input"]["value_cityname"]) == ''){
+		$error = true;
+	}
+
+	
+	if($error==true){
+		form_set_error($formval,'Incorrect value. Please Check again before submit');
+	}
+}
+
+function uc_custom_address_edit_form_submit($form, &$form_state) { 
+	global $base_url;
+	
+		//echo "<pre> --------";
+//var_dump($form_state); die;
+	
+	$country_code = $form_state["input"]["value_cntry"]; 
+	$city =$form_state["input"]["value_city"];
+	$cityName = $form_state["input"]["value_cityname"];
+	
+	if($city == 'add'){
+					$Idresult = db_select('uc_zones', 's')
+					->fields('s')
+					->condition('zone_country_id', $country_code ,'=')
+					->orderBy('zone_code', 'DESC')
+					->execute()
+					->fetchAll();
+				
+		$next_id = (int)($Idresult[0]->zone_code) + 1;
+		//echo $next_id ; die;
+		$tdata = db_insert('uc_zones') 
+				->fields(array(
+					'zone_country_id' => $country_code,
+					'zone_code' => $next_id,
+					'zone_name' => $cityName,
+				))
+				->execute();
+		
+	}else{
+		
+		
+		$result = db_select('uc_zones', 's')
+					->fields('s')
+					->condition('zone_country_id', $country_code ,'=')
+					->condition('zone_code', $city ,'=')
+					->execute()
+					->fetchAll();
+					
+		$num_updated = db_update('uc_zones') // Table name no longer needs {}
+					  ->fields(array(
+						'zone_name' => $cityName,
+					  ))
+					  ->condition('zone_country_id', $country_code ,'=')
+					  ->condition('zone_code', $city ,'=')
+					  ->execute(); 
+	}
+
+
+	drupal_set_message(t("Success Modificaion for ".$cityName));
+	drupal_goto($url=$base_url.'/admin/store/uc-countrys/uc_city/'.$country_code);
+}
+
+function uc_custom_address_delete_form($form, &$form_state ,$cntry , $city) {
+	
+	$country_code =$cntry; 
+	$city = $city;
+
+	$result = db_select('uc_zones', 's')
+			->fields('s')
+			->condition('zone_country_id', $country_code ,'=')
+			->condition('zone_code', $city ,'=')
+			->execute()
+			->fetchAll();
+
+	
+	/*$form['value_cityname'] = array(
+		'#title' => t('City Name'),
+		'#type' => 'textfield',
+		'#value' =>$result[0]->zone_name,
+		'#attributes' => array('readonly' => 'readonly'),
+	); */
+	
+	$form['value_cntry'] = array(
+		'#type' => 'hidden',
+		'#value' =>$result[0]->zone_country_id,
+	);
+	
+	$form['value_city'] = array(
+		'#type' => 'hidden',
+		'#value' =>$result[0]->zone_code,
+	);
+
+	// Provide a submit button.
+	$form['submit'] = array(
+		'#type' => 'submit',
+		'#value' => 'Delete',
+	);
+  
+  return $form;
+}
+
+function uc_custom_address_delete_form_validate($form, &$form_state) {
+	
+	if(trim($form_state["input"]["value_cntry"]) == ''){
+		$error = true;
+	}
+	if(trim($form_state["input"]["value_city"]) == ''){
+		$error = true;
+	}
+
+	
+	if($error==true){
+		form_set_error($formval,'Incorrect value. Please Check again before submit');
+	}
+}
+
+function uc_custom_address_delete_form_submit($form, &$form_state) { 
+	global $base_url;
+	
+		//echo "<pre> --------";
+//var_dump($form_state); die;
+	
+	$country_code = $form_state["input"]["value_cntry"]; 
+	$city =$form_state["input"]["value_city"];
+
+	
+
+	
+	$result = db_select('uc_zones', 's')
+				->fields('s')
+				->condition('zone_country_id', $country_code ,'=')
+				->condition('zone_code', $city ,'=')
+				->execute()
+				->fetchAll();
+
+	if(!$result){
+
+	}else{
+		$num_deleted = db_delete('uc_zones')
+					  ->condition('zone_country_id', $country_code ,'=')
+					  ->condition('zone_code', $city ,'=')
+					  ->execute();
+					  
+		}
+
+	drupal_set_message(t("Success Delete for ".$result[0]->zone_name));
+	drupal_goto($url=$base_url.'/admin/store/uc-countrys/uc_city/'.$country_code);
+}
+
+
+
+
